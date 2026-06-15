@@ -40,7 +40,7 @@ if not exist "%LAUNCHER_DIR%" mkdir "%LAUNCHER_DIR%"
 echo @echo off
 echo echo    ______        ______
 echo echo   /      \      /      \
-echo echo  ^|  ()()  ^|----^|  ()()  ^|
+echo echo  ^|  ^(^)^(^)  ^|----^|  ^(^)^(^)  ^|
 echo echo   \______/      \______/
 echo echo         DORK OPENER
 echo cd /d "%INSTALL_DIR%"
