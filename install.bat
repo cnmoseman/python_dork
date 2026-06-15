@@ -1,45 +1,69 @@
 @echo off
 echo === Python Dork Opener - Windows setup (Chromium) ===
 
+REM --- Check Python ---
 where python >nul 2>nul
 if %errorlevel% neq 0 (
     echo Python not found. Install from https://www.python.org/downloads/
-    echo and check "Add python.exe to PATH", then re-run.
+    echo and check "Add python.exe to PATH", then re-run this script.
     pause
     exit /b 1
 )
 
+REM --- Check Chromium / Chrome ---
 where chrome >nul 2>nul
 if %errorlevel% neq 0 (
     where chromium >nul 2>nul
     if %errorlevel% neq 0 (
-        echo Installing Chromium via winget...
+        echo Chromium not found. Attempting install via winget...
         winget install --id Hibbiki.Chromium -e --silent
+        if %errorlevel% neq 0 (
+            echo winget install failed. Install Chromium manually from
+            echo https://chromium.woolyss.com/ then re-run this script.
+            pause
+            exit /b 1
+        )
     )
 )
 
+REM --- Virtual environment + dependencies ---
 python -m venv venv
 call venv\Scripts\activate.bat
 python -m pip install --upgrade pip
 pip install selenium
 
-REM --- Install a `dork` launcher command ---
+REM --- Create the `dork` launcher command ---
 set "INSTALL_DIR=%cd%"
 set "LAUNCHER_DIR=%USERPROFILE%\bin"
 if not exist "%LAUNCHER_DIR%" mkdir "%LAUNCHER_DIR%"
 
 (
 echo @echo off
+echo echo    ______        ______
+echo echo   /      \      /      \
+echo echo  ^|  ()()  ^|----^|  ()()  ^|
+echo echo   \______/      \______/
+echo echo         DORK OPENER
 echo cd /d "%INSTALL_DIR%"
 echo call venv\Scripts\activate.bat
 echo python dork.py %%*
 ) > "%LAUNCHER_DIR%\dork.bat"
 
+REM --- Add launcher dir to USER PATH safely (no truncation, no duplicates) ---
+powershell -NoProfile -Command ^
+  "$dir='%LAUNCHER_DIR%';" ^
+  "$p=[Environment]::GetEnvironmentVariable('PATH','User');" ^
+  "if ($p -notlike '*'+$dir+'*') {" ^
+  "  [Environment]::SetEnvironmentVariable('PATH', $p + ';' + $dir, 'User');" ^
+  "  Write-Host 'Added '+$dir+' to your user PATH.'" ^
+  "} else {" ^
+  "  Write-Host $dir+' already on PATH.'" ^
+  "}"
+
 echo.
 echo Setup complete.
 echo A 'dork' command was created at %LAUNCHER_DIR%\dork.bat
 echo.
-echo Add %LAUNCHER_DIR% to your PATH so you can run 'dork' from anywhere:
-echo   setx PATH "%%PATH%%;%LAUNCHER_DIR%"
-echo Then open a NEW terminal and run:  dork dorks.txt
+echo IMPORTANT: open a NEW terminal window for the PATH change to take effect,
+echo then run:  dork dorks.txt
 pause
