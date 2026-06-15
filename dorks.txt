@@ -1,0 +1,3 @@
+site:example.com filetype:pdf
+intitle:"index of"
+inurl:docs site:example.org
