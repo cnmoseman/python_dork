@@ -16,12 +16,11 @@ if %errorlevel% neq 0 (
     where chromium >nul 2>nul
     if %errorlevel% neq 0 (
         echo Chromium not found. Attempting install via winget...
-        winget install --id Hibbiki.Chromium -e --silent
-        if %errorlevel% neq 0 (
-            echo winget install failed. Install Chromium manually from
-            echo https://chromium.woolyss.com/ then re-run this script.
-            pause
-            exit /b 1
+        winget install --id Hibbiki.Chromium -e --silent --accept-package-agreements --accept-source-agreements
+        REM winget exit codes: 0 = installed, -1978335189 = no upgrade/already installed
+        if errorlevel 1 (
+            echo Could not confirm Chromium via winget. If it is already installed, this is fine.
+            echo Otherwise install manually from https://chromium.woolyss.com/ and re-run.
         )
     )
 )
