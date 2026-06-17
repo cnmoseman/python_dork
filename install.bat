@@ -1,14 +1,32 @@
 @echo off
 echo === Python Dork Opener - Windows setup (Chromium) ===
 
-REM --- Check Python ---
-where python >nul 2>nul
-if %errorlevel% neq 0 (
-    echo Python not found. Install from https://www.python.org/downloads/
-    echo and check "Add python.exe to PATH", then re-run this script.
-    pause
-    exit /b 1
+REM --- Find a working Python interpreter, bypassing the Store alias trap ---
+set "PYTHON_CMD="
+
+py -3 --version >nul 2>nul
+if not errorlevel 1 (
+    set "PYTHON_CMD=py -3"
+    goto :python_found
 )
+
+python --version >nul 2>nul
+if not errorlevel 1 (
+    set "PYTHON_CMD=python"
+    goto :python_found
+)
+
+echo Python was not found, or the Microsoft Store alias is intercepting it.
+echo 1. Install Python from https://www.python.org/downloads/ and check
+echo    "Add python.exe to PATH" during install.
+echo 2. If Python IS installed but this still fails, disable the Store alias:
+echo    Settings ^> Apps ^> Advanced app settings ^> App execution aliases
+echo    Turn OFF python.exe and python3.exe.
+pause
+exit /b 1
+
+:python_found
+echo Using Python via: %PYTHON_CMD%
 
 REM --- Check Chromium / Chrome ---
 where chrome >nul 2>nul
@@ -17,30 +35,37 @@ if %errorlevel% neq 0 (
     if %errorlevel% neq 0 (
         echo Chromium not found. Attempting install via winget...
         winget install --id Hibbiki.Chromium -e --silent --accept-package-agreements --accept-source-agreements
-        REM winget exit codes: 0 = installed, -1978335189 = no upgrade/already installed
         if errorlevel 1 (
-            echo Could not confirm Chromium via winget. If it is already installed, this is fine.
-            echo Otherwise install manually from https://chromium.woolyss.com/ and re-run.
+            echo Could not confirm a fresh Chromium install via winget.
+            echo If Chromium is already installed this is fine. Otherwise install
+            echo manually from https://chromium.woolyss.com/ and re-run this script.
         )
     )
 )
 
-REM --- Virtual environment + dependencies ---
-python -m venv venv
-call venv\Scripts\activate.bat
-python -m pip install --upgrade pip
-pip install selenium
+REM --- Set up project paths ---
+set "INSTALL_DIR=%~dp0"
+if "%INSTALL_DIR:~-1%"=="\" set "INSTALL_DIR=%INSTALL_DIR:~0,-1%"
+
+REM --- Virtual environment (skip if it already exists) ---
+if exist "%INSTALL_DIR%\venv\Scripts\python.exe" (
+    echo Virtual environment already exists, skipping creation.
+) else (
+    %PYTHON_CMD% -m venv "%INSTALL_DIR%\venv"
+)
+
+REM --- Install dependencies using the venv's own python.exe directly ---
+REM (avoids relying on activate.bat / PATH, which is what breaks across machines)
+"%INSTALL_DIR%\venv\Scripts\python.exe" -m pip install --upgrade pip
+"%INSTALL_DIR%\venv\Scripts\python.exe" -m pip install selenium
 
 REM --- Create the `dork` launcher command ---
-set "INSTALL_DIR=%cd%"
 set "LAUNCHER_DIR=%USERPROFILE%\bin"
 if not exist "%LAUNCHER_DIR%" mkdir "%LAUNCHER_DIR%"
 
 (
 echo @echo off
-echo cd /d "%INSTALL_DIR%"
-echo call venv\Scripts\activate.bat
-echo python dork.py %%*
+echo "%INSTALL_DIR%\venv\Scripts\python.exe" "%INSTALL_DIR%\dork.py" %%*
 ) > "%LAUNCHER_DIR%\dork.bat"
 
 REM --- Add launcher dir to USER PATH safely (no truncation, no duplicates) ---
@@ -49,9 +74,9 @@ powershell -NoProfile -Command ^
   "$p=[Environment]::GetEnvironmentVariable('PATH','User');" ^
   "if ($p -notlike '*'+$dir+'*') {" ^
   "  [Environment]::SetEnvironmentVariable('PATH', $p + ';' + $dir, 'User');" ^
-  "  Write-Host 'Added '+$dir+' to your user PATH.'" ^
+  "  Write-Host ('Added ' + $dir + ' to your user PATH.')" ^
   "} else {" ^
-  "  Write-Host $dir+' already on PATH.'" ^
+  "  Write-Host ($dir + ' already on PATH.')" ^
   "}"
 
 echo.
